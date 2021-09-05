@@ -25,7 +25,7 @@ namespace Bob
 {
     public partial class MainWindow : Window
     {
-        string pathFile; //путь до выбранного файла
+        string pathFile = ""; //путь до выбранного файла
         string pathFolder = ""; //путь до папки с файлами
         string nameFolder = "FilesForSend";
         string nameFile = "";
@@ -290,7 +290,39 @@ namespace Bob
 
         private void ButtonSelectFile_Click(object sender, RoutedEventArgs e)
         {
+            pathFile = "";
+            nameFile = "";
 
+            OpenFileDialog myDialog = new OpenFileDialog();
+
+            myDialog.CheckFileExists = true;
+
+            myDialog.InitialDirectory = pathFolder;
+
+            myDialog.Filter = "Текстовые файлы|*.txt";
+            if (myDialog.ShowDialog() == true)
+            {
+                pathFile = myDialog.FileName;
+
+            }
+            if (pathFile != "")
+            {
+                string[] tempStrArr = pathFile.Split('\\');
+                for (int i = 0; i < tempStrArr.Length; i++)
+                {
+                    if (i == (tempStrArr.Length - 1))
+                    {
+                        nameFile = tempStrArr[i];
+                    }
+                }
+                fileText.Text = File.ReadAllText(pathFile, Encoding.Default);
+                labelFileState.Content = "Файл выбран";
+            }
+            else
+            {
+                fileText.Text = "";
+                labelFileState.Content = "Файл не выбран";
+            }
         }
         private void ButtonEncryptFile_Click(object sender, RoutedEventArgs e)
         {
