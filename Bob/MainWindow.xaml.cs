@@ -326,6 +326,14 @@ namespace Bob
                     {
                         fstream.Write(procData, 0, procData.Length);
                     }
+                    
+                    Action action = () =>
+                    {
+                        labelFileState.Content = ("Пришел файл " + nameStr);
+                        fileText.Text = "";
+                        pathFile = "";
+                    };
+                    Dispatcher.Invoke(action);
                 }
             }
             catch (Exception ex)
