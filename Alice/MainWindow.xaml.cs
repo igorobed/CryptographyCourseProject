@@ -41,6 +41,8 @@ namespace Alice
         int remotePortDataFile = 8008;// порт для отправки данных
         int localPortConnection = 8003;// локальный порт для прослушивания входящих подключений
         int localPortDataFile = 8007;// локальный порт для прослушивания входящих подключений
+        enum Mode { ecb, cbc, cfb, ofb};
+        Mode mode = Mode.ecb;// режим шифрования по умолчанию
         public MainWindow()
         {
             InitializeComponent();
@@ -394,11 +396,96 @@ namespace Alice
         }
         private void ButtonEncryptFile_Click(object sender, RoutedEventArgs e)
         {
+            try
+            {
+                if (pathFile != "")
+                {
+                    //блокирую кнопки шифровать, дешифровать, отправить и выбрать файл
+                    btnSelectFile.IsEnabled = false;
+                    buttonDec.IsEnabled = false;
+                    buttonEnc.IsEnabled = false;
+                    buttonSend.IsEnabled = false;
+                    //над получить текущий режим шифрования
+                    if (rbECB.IsChecked == true)
+                    {
+                        mode = Mode.ecb;
+                    }
+                    else if (rbCBC.IsChecked == true)
+                    {
+                        mode = Mode.cbc;
+                    }
+                    else if (rbCFB.IsChecked == true)
+                    {
+                        mode = Mode.cfb;
+                    }
+                    else
+                    {
+                        mode = Mode.ofb;
+                    }
 
+                    BackgroundWorker worker = new BackgroundWorker();
+                    worker.RunWorkerCompleted += worker_RunWorkerCompleted;
+                    worker.WorkerReportsProgress = true;
+                    worker.DoWork += worker_DoWork_Enc;
+                    worker.ProgressChanged += worker_ProgressChanged;
+                    worker.RunWorkerAsync();
+                }
+                else
+                {
+                    MessageBox.Show("Файл не выбран.");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка при шифровании файла.");
+            }
         }
         private void ButtonDecryptFile_Click(object sender, RoutedEventArgs e)
         {
+            try
+            {
+                if (pathFile != "")
+                {
+                    //блокирую кнопки шифровать, дешифровать, отправить и выбрать
+                    btnSelectFile.IsEnabled = false;
+                    buttonDec.IsEnabled = false;
+                    buttonEnc.IsEnabled = false;
+                    buttonSend.IsEnabled = false;
+                    
+                    //над получить текущий режим шифрования
+                    if (rbECB.IsChecked == true)
+                    {
+                        mode = Mode.ecb;
+                    }
+                    else if (rbCBC.IsChecked == true)
+                    {
+                        mode = Mode.cbc;
+                    }
+                    else if (rbCFB.IsChecked == true)
+                    {
+                        mode = Mode.cfb;
+                    }
+                    else
+                    {
+                        mode = Mode.ofb;
+                    }
 
+                    BackgroundWorker worker = new BackgroundWorker();
+                    worker.RunWorkerCompleted += worker_RunWorkerCompleted;
+                    worker.WorkerReportsProgress = true;
+                    worker.DoWork += worker_DoWork_Dec;
+                    worker.ProgressChanged += worker_ProgressChanged;
+                    worker.RunWorkerAsync();
+                }
+                else
+                {
+                    MessageBox.Show("Файл не выбран.");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка при дешифровании файла.");
+            }
         }
         private void ButtonSendFile_Click(object sender, RoutedEventArgs e)
         {
@@ -534,5 +621,171 @@ namespace Alice
             return result;
         }
         #endregion
+
+        #region ProgressBar methods
+        private void worker_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            progressBar.Value = e.ProgressPercentage;
+        }
+
+        private void worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            progressBar.Value = 0;
+            //разблокирую кнопки шифровать, дешифровать и отправить
+            btnSelectFile.IsEnabled = true;
+            buttonDec.IsEnabled = true;
+            buttonEnc.IsEnabled = true;
+            buttonSend.IsEnabled = true;
+        }
+
+        private void worker_DoWork_Enc(object sender, DoWorkEventArgs e)
+        {
+            var worker = sender as BackgroundWorker;
+            worker.ReportProgress(0);
+            byte[] data = getDataFromFile(pathFile);
+            byte[][] allBlocks = getArrayArraysForCipher(data);
+            byte[] percents = getPercentsArray(allBlocks.Length);
+            byte[][] encAllBlocks = new byte[allBlocks.Length][];
+
+            if (mode == Mode.ecb)
+            {
+                for (int i = 0; i < allBlocks.Length; i++)
+                {
+                    encAllBlocks[i] = ma.Encrypt(allBlocks[i]);
+                    worker.ReportProgress(percents[i]);
+                }
+            }
+            else if (mode == Mode.cbc)
+            {
+                byte[] prevBlock = IV;
+                for (int i = 0; i < allBlocks.Length; i++)
+                {
+                    for (int j = 0; j < allBlocks[i].Length; j++)
+                    {
+                        allBlocks[i][j] ^= prevBlock[j];
+                    }
+                    encAllBlocks[i] = ma.Encrypt(allBlocks[i]);
+                    prevBlock = encAllBlocks[i];
+                    worker.ReportProgress(percents[i]);
+                }
+            }
+            else if (mode == Mode.cfb)
+            {
+                byte[] prevBlock = IV;
+                for (int i = 0; i < allBlocks.Length; i++)
+                {
+                    var encryptedIv = ma.Encrypt(prevBlock);
+                    encAllBlocks[i] = encryptedIv;
+                    for (int j = 0; j < encryptedIv.Length; j++)
+                    {
+                        encAllBlocks[i][j] = (byte)(encryptedIv[j] ^ allBlocks[i][j]);
+                    }
+                    prevBlock = encAllBlocks[i];
+                    worker.ReportProgress(percents[i]);
+                }
+            }
+            else
+            {
+                byte[] prevIv = IV;
+                for (int i = 0; i < allBlocks.Length; i++)
+                {
+                    var tempIv = ma.Encrypt(prevIv);
+                    encAllBlocks[i] = new byte[allBlocks[i].Length];
+                    for (int j = 0; j < encAllBlocks[i].Length; j++)
+                    {
+                        encAllBlocks[i][j] = (byte)(tempIv[j] ^ allBlocks[i][j]);
+                    }
+                    prevIv = tempIv;
+                    worker.ReportProgress(percents[i]);
+                }
+            }
+
+            byte[] dataEnc = getArrayFromArrayArrays(encAllBlocks);
+            setDataToFile(pathFile, dataEnc);
+            Action action = () =>
+            {
+                fileText.Text = File.ReadAllText(pathFile, Encoding.Default);
+            };
+            Dispatcher.Invoke(action);
+            worker.ReportProgress(100);
+        }
+
+        private void worker_DoWork_Dec(object sender, DoWorkEventArgs e)
+        {
+            var worker = sender as BackgroundWorker;
+            worker.ReportProgress(0);
+            byte[] data = getDataFromFile(pathFile);
+            byte[][] allBlocks = getArrayArraysForCipher(data);
+            byte[] percents = getPercentsArray(allBlocks.Length);
+            byte[][] decAllBlocks = new byte[allBlocks.Length][];
+
+            if (mode == Mode.ecb)
+            {
+                for (int i = 0; i < allBlocks.Length; i++)
+                {
+                    decAllBlocks[i] = ma.Decrypt(allBlocks[i]);
+                    worker.ReportProgress(percents[i]);
+                }
+            }
+            else if (mode == Mode.cbc)
+            {
+                byte[] prev = IV;
+                for (int i = 0; i < allBlocks.Length; i++)
+                {
+                    var temp = ma.Decrypt(allBlocks[i]);
+                    decAllBlocks[i] = new byte[prev.Length];
+                    for (int j = 0; j < prev.Length; j++)
+                    {
+                        decAllBlocks[i][j] = (byte)(prev[j] ^ temp[j]);
+                    }
+                    prev = allBlocks[i];
+                    worker.ReportProgress(percents[i]);
+                }
+            }
+            else if (mode == Mode.cfb)
+            {
+                byte[] prev = IV;
+                for (int i = 0; i < allBlocks.Length; i++)
+                {
+                    var temp = ma.Encrypt(prev);
+                    decAllBlocks[i] = new byte[allBlocks[i].Length];
+                    for (int j = 0; j < allBlocks[i].Length; j++)
+                    {
+                        decAllBlocks[i][j] = (byte)(allBlocks[i][j] ^ temp[j]);
+                    }
+                    prev = allBlocks[i];
+                    worker.ReportProgress(percents[i]);
+                }
+            }
+            else
+            {
+                var CurrIv = IV;
+                for (int i = 0; i < allBlocks.Length; i++)
+                {
+                    var tempIv = ma.Encrypt(CurrIv);
+                    for (int j = 0; j < CurrIv.Length; j++)
+                    {
+                        CurrIv[j] = tempIv[j];
+                    }
+                    decAllBlocks[i] = new byte[allBlocks[i].Length];
+                    for (int j = 0; j < decAllBlocks[i].Length; j++)
+                    {
+                        decAllBlocks[i][j] = (byte)(allBlocks[i][j] ^ tempIv[j]);
+                    }
+                    worker.ReportProgress(percents[i]);
+                }
+            }
+
+            byte[] dataDec = getArrayFromArrayArrays(decAllBlocks);
+            setDataToFile(pathFile, dataDec);
+            Action action = () =>
+            {
+                fileText.Text = File.ReadAllText(pathFile, Encoding.Default);
+            };
+            Dispatcher.Invoke(action);
+            worker.ReportProgress(100);
+        }
+        #endregion
+
     }
 }
