@@ -8,7 +8,7 @@
         Title="Bob" Height="450" Width="800">
     <Grid>
         <StackPanel HorizontalAlignment="Left" Height="399" Margin="435,10,0,0" VerticalAlignment="Top" Width="347">
-            <Button Content="Установить соединение" Click="ButtonSetConnection_Click"/>
+            <Button x:Name="btnSetConnection" Content="Установить соединение" Click="ButtonSetConnection_Click"/>
             <Button Content="Выбрать файл" Click="ButtonSelectFile_Click"/>
 
             <GroupBox x:Name="gbModes" Header="Режимы шифрования: " Height="122" IsEnabled="False">
