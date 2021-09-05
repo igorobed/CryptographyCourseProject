@@ -61,8 +61,8 @@ namespace Bob
             receiveThreadConnection.Start();
 
             //получаем файл(данные) от друга
-            //Thread receiveThreadDataFile = new Thread(new ThreadStart(ReceiveMessageDataFile));
-            //receiveThreadDataFile.Start();
+            Thread receiveThreadDataFile = new Thread(new ThreadStart(ReceiveMessageDataFile));
+            receiveThreadDataFile.Start();
         }
 
         #region UDP methods
@@ -409,7 +409,7 @@ namespace Bob
         {
             if (pathFile != "")
             {
-                //SendMessageDataFile();
+                SendMessageDataFile();
                 MessageBox.Show("Файл отправлен.");
             }
             else

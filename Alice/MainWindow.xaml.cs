@@ -166,7 +166,6 @@ namespace Alice
                 sender.Close();
             }
         }
-
         private void ReceiveMessageConnection()
         {
             UdpClient receiver = new UdpClient(localPortConnection); // UdpClient для получения данных
@@ -262,7 +261,6 @@ namespace Alice
                 receiver.Close();
             }
         }
-
         private void SendMessageDataFile()
         {
             UdpClient sender = new UdpClient();
@@ -280,7 +278,6 @@ namespace Alice
                     }
                     fstream.Read(data, name.Length, data.Length - name.Length);
                 }
-
 
                 sender.Send(data, data.Length, remoteAddress, remotePortDataFile);
             }
