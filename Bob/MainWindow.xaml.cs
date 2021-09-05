@@ -146,7 +146,7 @@ namespace Bob
                         gbModes.IsEnabled = true;
                         rbECB.IsChecked = true;
                         labelKeyState.Content = "Сессионный ключ сгенерирован";
-                        labelModeState.Content = "Режим шифрования - ECB";
+                        labelModeState.Content = "Режим шифрования установлен";
                         buttonEnc.IsEnabled = true;
                         buttonDec.IsEnabled = true;
                         buttonSend.IsEnabled = true;
@@ -242,7 +242,7 @@ namespace Bob
                             gbModes.IsEnabled = true;
                             rbECB.IsChecked = true;
                             labelKeyState.Content = "Сессионный ключ сгенерирован";
-                            labelModeState.Content = "Режим шифрования - ECB";
+                            labelModeState.Content = "Режим шифрования установлен";
                             buttonEnc.IsEnabled = true;
                             buttonDec.IsEnabled = true;
                             buttonSend.IsEnabled = true;
@@ -250,6 +250,79 @@ namespace Bob
                         Dispatcher.Invoke(action);
 
                         state = 9;//получил сессионный ключ для мадженты
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            finally
+            {
+                receiver.Close();
+            }
+        }
+
+        private void SendMessageDataFile()
+        {
+            UdpClient sender = new UdpClient();
+            try
+            {
+                byte[] name = Encoding.Default.GetBytes(nameFile + "|");
+                byte[] data;
+                using (FileStream fstream = File.OpenRead(pathFile))
+                {
+                    //добавим имя файла и разделитель в начало
+                    data = new byte[fstream.Length + name.Length];
+                    for (int i = 0; i < name.Length; i++)
+                    {
+                        data[i] = name[i];
+                    }
+                    fstream.Read(data, name.Length, data.Length - name.Length);
+                }
+
+
+                sender.Send(data, data.Length, remoteAddress, remotePortDataFile);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            finally
+            {
+                sender.Close();
+            }
+        }
+
+        private void ReceiveMessageDataFile()
+        {
+            UdpClient receiver = new UdpClient(localPortDataFile); // UdpClient для получения данных
+            IPEndPoint remoteIp = null; // адрес входящего подключения
+            try
+            {
+                while (true)
+                {
+                    byte[] data = receiver.Receive(ref remoteIp);
+                    string nameStr = "";
+                    int charNum = 0;//индекс символа, следующего за разделителем '|'
+                    //ищем имя
+                    for (int i = 0; i < data.Length; i++)
+                    {
+                        if (data[i] == '|')
+                        {
+                            charNum = i + 1;
+                            break;
+                        }
+                        nameStr += Convert.ToChar(data[i]);
+                    }
+                    //перезапишем массив data, начиная с символа под индексом charNum
+                    byte[] procData = new byte[data.Length - (nameStr.Length + 1)];
+                    Array.Copy(data, charNum, procData, 0, procData.Length);
+                    //теперь открываем файл на запись/перезапись в нашей дирректории и закидываем в него данные
+
+                    using (FileStream fstream = new FileStream(pathFolder + "\\" + nameStr, FileMode.Create))
+                    {
+                        fstream.Write(procData, 0, procData.Length);
                     }
                 }
             }
@@ -334,7 +407,15 @@ namespace Bob
         }
         private void ButtonSendFile_Click(object sender, RoutedEventArgs e)
         {
-
+            if (pathFile != "")
+            {
+                //SendMessageDataFile();
+                MessageBox.Show("Файл отправлен.");
+            }
+            else
+            {
+                MessageBox.Show("Файл не выбран.");
+            }
         }
         #endregion
 
