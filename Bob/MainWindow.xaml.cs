@@ -35,7 +35,7 @@ namespace Bob
         Magenta ma;
         byte[] IV; //вектор инициализации
         //длина ключей....в обоих клиентах длины должны совпадать
-        int lengthKeyEl = 128;
+        int lengthKeyEl = 512;
         string remoteAddress = "127.0.0.1";// хост для отправки данных
         int remotePortConnection = 8003;// порт для отправки данных
         int remotePortDataFile = 8007;// порт для отправки данных
@@ -515,8 +515,48 @@ namespace Bob
         #endregion
 
         #region HELPER methods
-        private void setDataToFile(string path, byte[] data)
+        private void setDataToFile(string path, byte[] data, bool delPad = false)
         {
+
+            if (delPad == true)
+            {
+                byte[] newData;
+                if (data.Length == 16)
+                {
+                    string temp = Encoding.Default.GetString(data);
+                    temp = temp.Split('\0')[0];
+                    newData = Encoding.Default.GetBytes(temp);
+                }
+                else
+                {
+                    byte[] lastDataBlock = new byte[16];
+                    Array.Copy(data, data.Length - 16, lastDataBlock, 0, 16);
+
+                    string temp = Encoding.Default.GetString(lastDataBlock);
+                    temp = temp.Split('\0')[0];
+                    byte[] tempArr = Encoding.Default.GetBytes(temp);
+                    newData = new byte[data.Length - 16 + tempArr.Length];
+                    for (int i = 0; i < data.Length - 16; i++)
+                    {
+                        newData[i] = data[i];
+                        if (i == data.Length - 17)
+                        {
+                            i += 1;
+                            for (int j = 0; j < tempArr.Length; j++)
+                            {
+                                newData[i] = tempArr[j];
+                                i++;
+                            }
+                        }
+                    }
+
+                }
+                using (FileStream fstream = new FileStream(path, FileMode.Create))
+                {
+                    fstream.Write(newData, 0, newData.Length);
+                }
+                return;
+            }
             using (FileStream fstream = new FileStream(path, FileMode.Create))
             {
                 fstream.Write(data, 0, data.Length);
@@ -790,7 +830,7 @@ namespace Bob
             }
 
             byte[] dataDec = getArrayFromArrayArrays(decAllBlocks);
-            setDataToFile(pathFile, dataDec);
+            setDataToFile(pathFile, dataDec, true);
             Action action = () =>
             {
                 fileText.Text = File.ReadAllText(pathFile, Encoding.Default);
