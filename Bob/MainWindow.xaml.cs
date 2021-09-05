@@ -339,6 +339,124 @@ namespace Bob
         #endregion
 
         #region HELPER methods
+        private void setDataToFile(string path, byte[] data)
+        {
+            using (FileStream fstream = new FileStream(path, FileMode.Create))
+            {
+                fstream.Write(data, 0, data.Length);
+            }
+        }
+
+        private byte[] getDataFromFile(string path)
+        {
+            byte[] data;
+            using (FileStream fstream = File.OpenRead(path))
+            {
+                data = new byte[fstream.Length];
+                fstream.Read(data, 0, data.Length);
+            }
+            return data;
+        }
+
+        private byte[] getPercentsArray(int length)
+        {
+            float delta = (((float)100 / length));
+            byte[] percents = new byte[length];
+            //если дельты меньше 1
+            //мне нужно отловить индексы, до которых мы переходим границу очередного целого числа
+            if (delta < 1)
+            {
+                byte predPerc = 0;
+                float deltSum = 0;
+                byte currPercent = 0;
+                for (int i = 0; i < percents.Length; i++)
+                {
+                    deltSum += delta;
+                    if ((byte)deltSum != predPerc)
+                    {
+                        currPercent += 1;
+                        predPerc = (byte)deltSum;
+                    }
+                    percents[i] = currPercent;
+                }
+            }
+            else
+            {
+                byte deltSum = 0;
+                for (int i = 0; i < percents.Length; i++)
+                {
+                    percents[i] = deltSum;
+                    deltSum += (byte)delta;
+                }
+            }
+            return percents;
+        }
+
+        //превращаем одномерный массив в двумерный зубчатый
+        private byte[][] getArrayArraysForCipher(byte[] data)
+        {
+            byte[][] result;
+            //byte[] tempData = data;
+            if (data.Length <= 16)
+            {
+                result = new byte[1][];
+                result[0] = data;
+                Array.Resize(ref result[0], 16);
+                return result;
+            }
+            else if ((data.Length > 16) && (data.Length % 16 == 0))
+            {
+                result = new byte[data.Length / 16][];
+                for (int i = 0; i < data.Length / 16; i++)
+                {
+                    result[i] = new byte[16];
+                    //копирование
+                    for (int j = 0; j < 16; j++)
+                    {
+                        result[i][j] = data[i * 16 + j];
+                    }
+                }
+                return result;
+            }
+            else
+            {
+                result = new byte[data.Length / 16 + 1][];
+                for (int i = 0; i < data.Length / 16 + 1; i++)
+                {
+                    result[i] = new byte[16];
+                    //если у нас последний цикл, значит в исходном массиве осталось не ровно 16 элементов, а меньше
+                    if (i == data.Length / 16)
+                    {
+                        for (int j = 0; j < (data.Length - 16 * (data.Length / 16)); j++)
+                        {
+                            result[i][j] = data[i * 16 + j];
+                        }
+                    }
+                    else
+                    {
+                        for (int j = 0; j < 16; j++)
+                        {
+                            result[i][j] = data[i * 16 + j];
+                        }
+                    }
+                }
+                return result;
+            }
+        }
+
+        //разворачиваем зубчатый массив в одномерный
+        private byte[] getArrayFromArrayArrays(byte[][] allBlocks)
+        {
+            byte[] result = new byte[allBlocks.Length * 16];
+            for (int i = 0; i < allBlocks.Length; i++)
+            {
+                for (int j = 0; j < 16; j++)
+                {
+                    result[16 * i + j] = allBlocks[i][j];
+                }
+            }
+            return result;
+        }
         #endregion
     }
 }
